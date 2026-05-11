@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cipher Tool | Encoder & Decoder</title>
+    <!-- Tailwind Play CDN -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      @theme {
+        --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+      }
+
+      body {
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      .font-mono {
+        font-family: var(--font-mono);
+      }
+
+      /* Custom scrollbar for data areas */
+      textarea::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      textarea::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      textarea::-webkit-scrollbar-thumb {
+        background: #27272a;
+        border-radius: 4px;
+      }
+
+      textarea::-webkit-scrollbar-thumb:hover {
+        background: #3f3f46;
+      }
+
+      /* Hide radio buttons but keep peer functionality */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+    </style>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100 selection:bg-indigo-500/30">
+    <div id="root" class="min-h-screen flex flex-col">
+      <!-- Top Navigation / Header -->
+      <header class="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h1 class="font-semibold text-lg tracking-tight uppercase">Cipher Tool <span class="text-zinc-500 font-normal">v1.1</span></h1>
+        </div>
+        <div class="flex items-center gap-6 text-xs font-mono text-zinc-500">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            CLIENT-SIDE READY
+          </div>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Controls Sidebar -->
+        <div class="lg:col-span-3 space-y-6">
+          <section class="space-y-4">
+            <h2 class="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+              Configuration
+            </h2>
+            
+            <!-- Method Selector -->
+            <div class="space-y-1.5">
+              <label for="method-select" class="text-xs text-zinc-400 font-medium">Method</label>
+              <select id="method-select" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer">
+                <option value="base64">Base64</option>
+                <option value="url">URL Encoding</option>
+                <option value="html">HTML Entities</option>
+                <option value="hex">Hexadecimal</option>
+                <option value="binary">Binary</option>
+                <option value="unicode">Unicode Escape</option>
+                <option value="rot13">ROT13</option>
+              </select>
+            </div>
+
+            <!-- Mode Switcher -->
+            <div class="space-y-1.5 pt-2">
+              <span class="text-xs text-zinc-400 font-medium block">Operation</span>
+              <div class="grid grid-cols-2 bg-zinc-900 p-1 rounded-lg border border-zinc-800">
+                <label class="cursor-pointer group">
+                  <input type="radio" name="mode" value="encode" checked class="sr-only peer">
+                  <div class="py-1.5 text-center text-xs font-semibold rounded-md transition-all peer-checked:bg-zinc-800 peer-checked:text-indigo-400 text-zinc-500">
+                    ENCODE
+                  </div>
+                </label>
+                <label class="cursor-pointer group">
+                  <input type="radio" name="mode" value="decode" class="sr-only peer">
+                  <div class="py-1.5 text-center text-xs font-semibold rounded-md transition-all peer-checked:bg-zinc-800 peer-checked:text-indigo-400 text-zinc-500">
+                    DECODE
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <footer class="pt-8 border-t border-zinc-900">
+            <p class="text-[10px] leading-relaxed text-zinc-600 font-mono">
+              Designed for high-performance data transformation. Vanilla JS implementation in a single file.
+            </p>
+          </footer>
+        </div>
+
+        <!-- Working Area -->
+        <div class="lg:col-span-9 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[500px]">
+            <!-- Input Area -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between px-1">
+                <label class="text-[11px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Input Data
+                </label>
+                <span id="input-stats" class="text-[10px] font-mono text-zinc-600 tabular-nums">0 chars | 0 bytes</span>
+              </div>
+              <textarea 
+                id="input-area" 
+                placeholder="Paste your source data here..."
+                class="flex-1 w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 font-mono text-sm resize-none focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-zinc-700"
+              ></textarea>
+            </div>
+
+            <!-- Output Area -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between px-1">
+                <label class="text-[11px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Output Result
+                </label>
+                <span id="output-stats" class="text-[10px] font-mono text-zinc-600 tabular-nums">0 chars | 0 bytes</span>
+              </div>
+              <div class="relative flex-1 flex flex-col">
+                <textarea 
+                  id="output-area" 
+                  readonly
+                  placeholder="The result will appear here..."
+                  class="flex-1 w-full bg-zinc-900/30 border border-zinc-800 rounded-xl p-4 font-mono text-sm resize-none focus:outline-none text-indigo-300 placeholder:text-zinc-700"
+                ></textarea>
+                <button 
+                  id="copy-btn"
+                  class="absolute bottom-4 right-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 border border-zinc-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                  Copy result
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script shadow>
+      // --- Encoding/Decoding Functions ---
+
+      const methods = {
+        base64: {
+          encode: (s) => {
+            try {
+              const bytes = new TextEncoder().encode(s);
+              let binary = '';
+              for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              return btoa(binary);
+            } catch (e) {
+              return 'Error: Invalid input for Base64 encoding';
+            }
+          },
+          decode: (s) => {
+            try {
+              const binary = atob(s);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+              }
+              return new TextDecoder().decode(bytes);
+            } catch (e) {
+              return 'Error: Invalid Base64 string';
+            }
+          }
+        },
+        url: {
+          encode: (s) => encodeURIComponent(s),
+          decode: (s) => {
+            try {
+              return decodeURIComponent(s);
+            } catch (e) {
+              return 'Error: Invalid URL encoding';
+            }
+          }
+        },
+        html: {
+          encode: (s) => {
+            const el = document.createElement('div');
+            el.innerText = s;
+            return el.innerHTML;
+          },
+          decode: (s) => {
+            const el = document.createElement('div');
+            el.innerHTML = s;
+            return el.innerText;
+          }
+        },
+        hex: {
+          encode: (s) => {
+            return Array.from(new TextEncoder().encode(s))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join(' ');
+          },
+          decode: (s) => {
+            try {
+              const bytes = s.replace(/\s+/g, '').match(/.{1,2}/g)?.map(byte => parseInt(byte, 16));
+              if (!bytes) return '';
+              return new TextDecoder().decode(new Uint8Array(bytes));
+            } catch (e) {
+              return 'Error: Invalid Hex string';
+            }
+          }
+        },
+        binary: {
+          encode: (s) => {
+            return Array.from(new TextEncoder().encode(s))
+              .map(b => b.toString(2).padStart(8, '0'))
+              .join(' ');
+          },
+          decode: (s) => {
+            try {
+              const bytes = s.replace(/\s+/g, '').match(/.{8}/g)?.map(byte => parseInt(byte, 2));
+              if (!bytes) return '';
+              return new TextDecoder().decode(new Uint8Array(bytes));
+            } catch (e) {
+              return 'Error: Invalid binary string';
+            }
+          }
+        },
+        rot13: {
+          encode: (s) => {
+            return s.replace(/[a-zA-Z]/g, (c) => {
+              const base = c <= 'Z' ? 65 : 97;
+              return String.fromCharCode(((c.charCodeAt(0) - base + 13) % 26) + base);
+            });
+          },
+          decode: (s) => methods.rot13.encode(s)
+        },
+        unicode: {
+          encode: (s) => {
+            return s.split('').map(c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`).join('');
+          },
+          decode: (s) => {
+            try {
+              return s.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+            } catch (e) {
+              return 'Error: Invalid Unicode escape sequence';
+            }
+          }
+        }
+      };
+
+      // --- DOM elements ---
+      const inputArea = document.getElementById('input-area');
+      const outputArea = document.getElementById('output-area');
+      const methodSelect = document.getElementById('method-select');
+      const modeSwitch = document.getElementsByName('mode');
+      const copyBtn = document.getElementById('copy-btn');
+      const inputStats = document.getElementById('input-stats');
+      const outputStats = document.getElementById('output-stats');
+
+      // --- App Logic ---
+
+      function getMode() {
+        let mode = 'encode';
+        modeSwitch.forEach(input => {
+          if (input.checked) mode = input.value;
+        });
+        return mode;
+      }
+
+      function update() {
+        const text = inputArea.value;
+        const method = methodSelect.value;
+        const mode = getMode();
+
+        if (!text) {
+          outputArea.value = '';
+          updateStats();
+          return;
+        }
+
+        const result = methods[method][mode](text);
+        outputArea.value = result;
+        updateStats();
+      }
+
+      function updateStats() {
+        const inputLen = inputArea.value.length;
+        const inputBytes = new Blob([inputArea.value]).size;
+        const outputLen = outputArea.value.length;
+        const outputBytes = new Blob([outputArea.value]).size;
+        
+        inputStats.innerText = `${inputLen} chars | ${inputBytes} bytes`;
+        outputStats.innerText = `${outputLen} chars | ${outputBytes} bytes`;
+      }
+
+      // --- Event Listeners ---
+
+      inputArea.addEventListener('input', update);
+      methodSelect.addEventListener('change', update);
+      modeSwitch.forEach(radio => radio.addEventListener('change', update));
+
+      copyBtn.addEventListener('click', () => {
+        if (!outputArea.value) return;
+        navigator.clipboard.writeText(outputArea.value);
+        const originalContent = copyBtn.innerHTML;
+        copyBtn.innerText = 'COPIED!';
+        copyBtn.style.backgroundColor = '#166534'; // green-800
+        copyBtn.style.color = '#ffffff';
+        setTimeout(() => {
+          copyBtn.innerHTML = originalContent;
+          copyBtn.style.backgroundColor = '';
+          copyBtn.style.color = '';
+        }, 2000);
+      });
+
+      // Initial call
+      update();
+    </script>
+  </body>
+</html>
