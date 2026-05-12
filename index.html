@@ -88,6 +88,8 @@
               <label for="method-select" class="text-xs text-zinc-400 font-medium">Method</label>
               <select id="method-select" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer">
                 <option value="base64">Base64</option>
+                <option value="base64url">Base64URL</option>
+                <option value="jwt">JWT (JSON Web Token)</option>
                 <option value="url">URL Encoding</option>
                 <option value="html">HTML Entities</option>
                 <option value="hex">Hexadecimal</option>
@@ -200,6 +202,57 @@
               return new TextDecoder().decode(bytes);
             } catch (e) {
               return 'Error: Invalid Base64 string';
+            }
+          }
+        },
+        base64url: {
+          encode: (s) => {
+            try {
+              const bytes = new TextEncoder().encode(s);
+              let binary = '';
+              for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            } catch (e) {
+              return 'Error: Invalid input for Base64URL encoding';
+            }
+          },
+          decode: (s) => {
+            try {
+              let b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+              while (b64.length % 4) b64 += '=';
+              const binary = atob(b64);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+              }
+              return new TextDecoder().decode(bytes);
+            } catch (e) {
+              return 'Error: Invalid Base64URL string';
+            }
+          }
+        },
+        jwt: {
+          encode: (s) => {
+            try {
+               const data = JSON.parse(s);
+               const h = methods.base64url.encode(JSON.stringify(data.header || {alg: "none", typ: "JWT"}));
+               const p = methods.base64url.encode(JSON.stringify(data.payload || {}));
+               return `${h}.${p}.`;
+            } catch (e) {
+              return 'Error: Input must be JSON: {"header":{}, "payload":{}} to generate unverified JWT';
+            }
+          },
+          decode: (s) => {
+            try {
+              const parts = s.split('.');
+              if (parts.length < 2) return 'Error: Invalid JWT format';
+              const header = JSON.parse(methods.base64url.decode(parts[0]));
+              const payload = JSON.parse(methods.base64url.decode(parts[1]));
+              return JSON.stringify({ header, payload }, null, 2);
+            } catch (e) {
+              return 'Error: Could not decode JWT components';
             }
           }
         },
