@@ -90,6 +90,7 @@
                 <option value="base64">Base64</option>
                 <option value="base64url">Base64URL</option>
                 <option value="jwt">JWT (JSON Web Token)</option>
+                <option value="jwks">JWKS (JSON Web Key Set)</option>
                 <option value="url">URL Encoding</option>
                 <option value="html">HTML Entities</option>
                 <option value="hex">Hexadecimal</option>
@@ -330,6 +331,65 @@
               return 'Error: Invalid Unicode escape sequence';
             }
           }
+        },
+        jwks: {
+          encode: async (s) => {
+            try {
+              // PEM to JWKS
+              const pem = s.replace(/-----BEGIN (?:PUBLIC|PRIVATE) KEY-----|-----END (?:PUBLIC|PRIVATE) KEY-----|\s/g, '');
+              const binary = atob(pem);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+              // Try importing as SPKI (Public Key)
+              let key;
+              try {
+                key = await crypto.subtle.importKey(
+                  'spki',
+                  bytes,
+                  { name: 'RSA-OAEP', hash: 'SHA-256' },
+                  true,
+                  ['encrypt']
+                );
+              } catch (e) {
+                // If RSA-OAEP fails, maybe it's ECDSA?
+                try {
+                  key = await crypto.subtle.importKey(
+                    'spki',
+                    bytes,
+                    { name: 'ECDSA', namedCurve: 'P-256' },
+                    true,
+                    ['verify']
+                  );
+                } catch (e2) {
+                  return 'Error: Unsupported key format. Please provide an RSA or EC SPKI Public Key in PEM format.';
+                }
+              }
+              
+              const jwk = await crypto.subtle.exportKey('jwk', key);
+              return JSON.stringify({ keys: [jwk] }, null, 2);
+            } catch (e) {
+              return 'Error: ' + e.message;
+            }
+          },
+          decode: async (s) => {
+            try {
+              // JWKS to PEM
+              const data = JSON.parse(s);
+              const jwk = data.keys ? data.keys[0] : data;
+              
+              const alg = jwk.kty === 'RSA' ? { name: 'RSA-OAEP', hash: 'SHA-256' } : { name: 'ECDSA', namedCurve: jwk.crv || 'P-256' };
+              const key = await crypto.subtle.importKey('jwk', jwk, alg, true, jwk.kty === 'RSA' ? ['encrypt'] : ['verify']);
+              const spki = await crypto.subtle.exportKey('spki', key);
+              
+              const binary = String.fromCharCode(...new Uint8Array(spki));
+              const b64 = btoa(binary);
+              const pem = `-----BEGIN PUBLIC KEY-----\n${b64.match(/.{1,64}/g).join('\n')}\n-----END PUBLIC KEY-----`;
+              return pem;
+            } catch (e) {
+              return 'Error: Invalid JWKS or JWK format. ' + e.message;
+            }
+          }
         }
       };
 
@@ -352,7 +412,7 @@
         return mode;
       }
 
-      function update() {
+      async function update() {
         const text = inputArea.value;
         const method = methodSelect.value;
         const mode = getMode();
@@ -363,8 +423,12 @@
           return;
         }
 
-        const result = methods[method][mode](text);
-        outputArea.value = result;
+        try {
+          const result = await methods[method][mode](text);
+          outputArea.value = result;
+        } catch (e) {
+          outputArea.value = 'Execution error: ' + e.message;
+        }
         updateStats();
       }
 
