@@ -89,6 +89,7 @@
               <select id="method-select" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer">
                 <option value="base64">Base64</option>
                 <option value="base64url">Base64URL</option>
+                <option value="base92">Base92</option>
                 <option value="jwt">JWT (JSON Web Token)</option>
                 <option value="jwks">JWKS (JSON Web Key Set)</option>
                 <option value="url">URL Encoding</option>
@@ -179,6 +180,17 @@
     <script shadow>
       // --- Encoding/Decoding Functions ---
 
+      // Base92 Character Set: 91 characters (ord '!' = 33, '#' to '_' = 35..95, 'a' to '}' = 97..125)
+      // Special empty string representation: '~' (ASCII 126)
+      const base92Chars = [33];
+      for (let i = 0; i < 61; i++) base92Chars.push(35 + i);
+      for (let i = 0; i < 29; i++) base92Chars.push(97 + i);
+      const BASE92_ALPHABET = String.fromCharCode(...base92Chars);
+      const BASE92_VALS = {};
+      for (let i = 0; i < BASE92_ALPHABET.length; i++) {
+        BASE92_VALS[BASE92_ALPHABET[i]] = i;
+      }
+
       const methods = {
         base64: {
           encode: (s) => {
@@ -231,6 +243,86 @@
               return new TextDecoder().decode(bytes);
             } catch (e) {
               return 'Error: Invalid Base64URL string';
+            }
+          }
+        },
+        base92: {
+          encode: (s) => {
+            try {
+              const bytes = new TextEncoder().encode(s);
+              if (bytes.length === 0) return '~';
+              let bitBuffer = 0;
+              let bitCount = 0;
+              let res = '';
+              for (let i = 0; i < bytes.length; i++) {
+                bitBuffer = (bitBuffer << 8) | bytes[i];
+                bitCount += 8;
+                while (bitCount >= 13) {
+                  const chunk = bitBuffer >> (bitCount - 13);
+                  bitBuffer &= (1 << (bitCount - 13)) - 1;
+                  bitCount -= 13;
+                  res += BASE92_ALPHABET[Math.floor(chunk / 91)];
+                  res += BASE92_ALPHABET[chunk % 91];
+                }
+              }
+              if (bitCount > 0) {
+                if (bitCount < 7) {
+                  const chunk = bitBuffer << (6 - bitCount);
+                  res += BASE92_ALPHABET[chunk];
+                } else {
+                  const chunk = bitBuffer << (13 - bitCount);
+                  res += BASE92_ALPHABET[Math.floor(chunk / 91)];
+                  res += BASE92_ALPHABET[chunk % 91];
+                }
+              }
+              return res;
+            } catch (e) {
+              return 'Error: Base92 encoding failed - ' + e.message;
+            }
+          },
+          decode: (s) => {
+            try {
+              const str = s.replace(/\s+/g, '');
+              if (str === '~' || str === '') return '';
+              if (str.length === 1) return 'Error: 1 character is not a valid base92 encoding';
+              let bitBuffer = 0;
+              let bitCount = 0;
+              const res = [];
+              let i = 0;
+              while (i < str.length - 1) {
+                const c1 = str[i];
+                const c2 = str[i + 1];
+                if (!(c1 in BASE92_VALS) || !(c2 in BASE92_VALS)) {
+                  return 'Error: Invalid base92 character "' + (c1 in BASE92_VALS ? c2 : c1) + '"';
+                }
+                const v1 = BASE92_VALS[c1];
+                const v2 = BASE92_VALS[c2];
+                const chunk = v1 * 91 + v2;
+                if (chunk >= 8192) return 'Error: Invalid base92 sequence (value exceeds 13-bit max)';
+                bitBuffer = (bitBuffer << 13) | chunk;
+                bitCount += 13;
+                while (bitCount >= 8) {
+                  res.push((bitBuffer >> (bitCount - 8)) & 0xff);
+                  bitBuffer &= (1 << (bitCount - 8)) - 1;
+                  bitCount -= 8;
+                }
+                i += 2;
+              }
+              if (i < str.length) {
+                const c = str[i];
+                if (!(c in BASE92_VALS)) return 'Error: Invalid base92 character "' + c + '"';
+                const val = BASE92_VALS[c];
+                bitBuffer = (bitBuffer << 6) | val;
+                bitCount += 6;
+                while (bitCount >= 8) {
+                  res.push((bitBuffer >> (bitCount - 8)) & 0xff);
+                  bitBuffer &= (1 << (bitCount - 8)) - 1;
+                  bitCount -= 8;
+                }
+              }
+              return new TextDecoder().decode(new Uint8Array(res));
+            } catch (e) {
+              return 'Error: Invalid Base92 string - ' + e.message;
             }
           }
         },
